@@ -1,0 +1,26 @@
+# Default number of replicas
+replicaCount: 1
+
+# Docker image configuration
+image:
+  repository: "<ecr-repository-url>" # Update with actual ECR URL
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+
+# Ingress configuration
+ingress:
+  enabled: false
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+  requests:
+    cpu: "200m"
+    memory: "256Mi"

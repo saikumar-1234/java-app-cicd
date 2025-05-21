@@ -1,0 +1,31 @@
+# Number of replicas for prod
+replicaCount: 3
+
+# Docker image configuration for prod
+image:
+  repository: "<ecr-repository-url>" # Update with prod ECR URL
+  tag: "prod-${BUILD_NUMBER}"
+  pullPolicy: IfNotPresent
+
+# Service configuration for prod
+service:
+  type: ClusterIP
+  port: 80
+
+# Ingress configuration for prod
+ingress:
+  enabled: true
+  hosts:
+    - host: prod.java-app.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Resource limits and requests for prod
+resources:
+  limits:
+    cpu: "500m"
+    memory: "768Mi"
+  requests:
+    cpu: "300m"
+    memory: "512Mi"
