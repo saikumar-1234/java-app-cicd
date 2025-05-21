@@ -1,0 +1,31 @@
+# Number of replicas for stage
+replicaCount: 2
+
+# Docker image configuration for stage
+image:
+  repository: "<ecr-repository-url>" # Update with stage ECR URL
+  tag: "stage-${BUILD_NUMBER}"
+  pullPolicy: IfNotPresent
+
+# Service configuration for stage
+service:
+  type: ClusterIP
+  port: 80
+
+# Ingress configuration for stage
+ingress:
+  enabled: true
+  hosts:
+    - host: stage.java-app.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Resource limits and requests for stage
+resources:
+  limits:
+    cpu: "400m"
+    memory: "512Mi"
+  requests:
+    cpu: "200m"
+    memory: "256Mi"

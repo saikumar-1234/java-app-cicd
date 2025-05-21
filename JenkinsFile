@@ -1,0 +1,142 @@
+// Define the Jenkins pipeline
+pipeline {
+    // Run on any available Jenkins agent
+    agent any
+
+    // Environment variables for AWS, ECR, and credentials
+    environment {
+        AWS_REGION = 'us-east-1' // AWS region for ECR and EKS
+        ECR_REPOSITORY = credentials('ecr-repository-url') // Jenkins credential for ECR URL
+        DOCKER_CREDENTIALS = 'docker-cred' // Jenkins credential for Docker/ECR
+        GIT_CREDENTIALS = 'git-cred' // Jenkins credential for GitHub
+        SONAR_TOKEN = credentials('sonar-token') // Jenkins credential for SonarQube
+        ARGOCD_SERVER = 'argocd.example.com' // ArgoCD server URL
+        ARGOCD_CREDENTIALS = 'argocd-cred' // Jenkins credential for ArgoCD
+    }
+
+    // Specify Maven tool version
+    tools {
+        maven 'maven3'
+    }
+
+    // Pipeline stages
+    stages {
+        // Checkout code from GitHub based on the branch
+        stage('Checkout') {
+            steps {
+                git branch: env.BRANCH_NAME, credentialsId: env.GIT_CREDENTIALS, url: 'https://github.com/<your-username>/java-app-cicd.git'
+            }
+        }
+
+        // Compile the Java code
+        stage('Compile') {
+            steps {
+                sh 'mvn compile'
+            }
+        }
+
+        // Run unit tests
+        stage('Unit Test') {
+            steps {
+                sh 'mvn test'
+            }
+        }
+
+        // Perform code quality analysis with SonarQube
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh """
+                    mvn sonar:sonar \
+                        -Dsonar.projectKey=java-app \
+                        -Dsonar.host.url=http://sonarqube:9000 \
+                        -Dsonar.login=$SONAR_TOKEN
+                    """
+                }
+            }
+        }
+
+        // Scan code for vulnerabilities using Trivy
+        stage('Trivy Scan') {
+            steps {
+                sh 'trivy fs --format table -o trivy-report.html .'
+            }
+        }
+
+        // Build the Java application JAR
+        stage('Build Application') {
+            steps {
+                sh 'mvn package -DskipTests'
+            }
+        }
+
+        // Build Docker image with branch and build number tag
+        stage('Docker Build') {
+            steps {
+                script {
+                    docker.build("${ECR_REPOSITORY}:${env.BRANCH_NAME}-${env.BUILD_NUMBER}")
+                }
+            }
+        }
+
+        // Push Docker image to ECR
+        stage('Push to ECR') {
+            steps {
+                script {
+                    docker.withRegistry("https://${ECR_REPOSITORY}", "ecr:${AWS_REGION}:${DOCKER_CREDENTIALS}") {
+                        docker.image("${ECR_REPOSITORY}:${env.BRANCH_NAME}-${env.BUILD_NUMBER}").push()
+                        docker.image("${ECR_REPOSITORY}:${env.BRANCH_NAME}-${env.BUILD_NUMBER}").push('latest')
+                    }
+                }
+            }
+        }
+
+        // Update Helm values file with new image tag and push to GitHub
+        stage('Update Helm Values') {
+            when {
+                anyOf {
+                    branch 'dev'
+                    branch 'stage'
+                    branch 'prod'
+                }
+            }
+            steps {
+                sh """
+                git checkout ${env.BRANCH_NAME}
+                sed -i 's|tag:.*|tag: "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"|' helm/values-${env.BRANCH_NAME}.yaml
+                git add helm/values-${env.BRANCH_NAME}.yaml
+                git commit -m "Update image tag for ${env.BRANCH_NAME} to ${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+                git push origin ${env.BRANCH_NAME}
+                """
+            }
+        }
+
+        // Deploy to EKS using ArgoCD
+        stage('Deploy with ArgoCD') {
+            when {
+                anyOf {
+                    branch 'dev'
+                    branch 'stage'
+                    branch 'prod'
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: env.ARGOCD_CREDENTIALS, usernameVariable: 'ARGOCD_USER', passwordVariable: 'ARGOCD_PASS')]) {
+                    sh """
+                    argocd login ${ARGOCD_SERVER} --username ${ARGOCD_USER} --password ${ARGOCD_PASS} --insecure
+                    argocd app sync java-app-${env.BRANCH_NAME} --force
+                    argocd app set java-app-${env.BRANCH_NAME} --helm-set image.tag=${env.BRANCH_NAME}-${env.BUILD_NUMBER}
+                    argocd app sync java-app-${env.BRANCH_NAME} --force
+                    """
+                }
+            }
+        }
+    }
+
+    // Archive Trivy report for review
+    post {
+        always {
+            archiveArtifacts artifacts: 'trivy-report.html', allowEmptyArchive: true
+        }
+    }
+}

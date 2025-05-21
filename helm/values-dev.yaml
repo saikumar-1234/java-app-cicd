@@ -1,0 +1,31 @@
+# Number of replicas for dev
+replicaCount: 1
+
+# Docker image configuration for dev
+image:
+  repository: "<ecr-repository-url>" # Update with dev ECR URL
+  tag: "dev-${BUILD_NUMBER}"
+  pullPolicy: IfNotPresent
+
+# Service configuration for dev
+service:
+  type: LoadBalancer
+  port: 80
+
+# Ingress configuration for dev
+ingress:
+  enabled: true
+  hosts:
+    - host: dev.java-app.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Resource limits and requests for dev
+resources:
+  limits:
+    cpu: "300m"
+    memory: "384Mi"
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
