@@ -1,0 +1,22 @@
+# Ignore IDE-specific files
+.idea/
+*.iml
+
+# Ignore Maven build output
+target/
+
+# Ignore Terraform state files
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Ignore Docker build artifacts
+*.dockerignore
+
+# Ignore temporary files
+*.log
+*.tmp
+
+# Ignore sensitive files
+*.env
+*.secret
