@@ -65,4 +65,4 @@ This project demonstrates a CI/CD pipeline for a Java Spring Boot application de
 
 ## Accessing the Application
 - For `dev`, use the LoadBalancer URL (`kubectl get svc -n dev`).
-- For `stage` and `prod`, configure DNS for Ingress hosts.
+- For `stage` and `prod`, configure DNS for Ingress hosts.# latest-java-cicd
