@@ -24,7 +24,7 @@ pipeline {
         // Checkout code from GitHub based on the branch
         stage('Checkout') {
             steps {
-                git branch: env.BRANCH_NAME, credentialsId: env.GIT_CREDENTIALS, url: 'https://github.com/<your-username>/java-app-cicd.git'
+                git branch: env.BRANCH_NAME, credentialsId: env.GIT_CREDENTIALS, url: 'https://github.com/saikumar-1234/java-app-cicd.git'
             }
         }
 
